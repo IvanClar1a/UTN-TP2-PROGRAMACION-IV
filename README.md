@@ -1,96 +1,152 @@
-# TP2: Sistema de Biblioteca (FastAPI + SQLModel)
+# 📚 Sistema de Biblioteca — API REST
 
-API RESTful construida con **FastAPI** y **SQLModel** para la gestión del catálogo de una biblioteca, sus socios y el circuito transaccional de préstamos y devoluciones. Desarrollado para **Programación IV (TUP - UTN)**.
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![SQLModel](https://img.shields.io/badge/SQLModel-ORM-4B8BBE?style=for-the-badge)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![Pytest](https://img.shields.io/badge/Pytest-Testing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)
 
-## Arquitectura del Proyecto
+API RESTful desarrollada con **FastAPI** y **SQLModel** para gestionar el catálogo de una biblioteca, sus autores, socios y el circuito transaccional de préstamos y devoluciones con cálculo automático de multas.
 
-El proyecto implementa una arquitectura en capas con separación estricta de responsabilidades e Inyección de Dependencias (`Depends`):
+> **Trabajo Práctico N° 2** — Programación IV · Tecnicatura Universitaria en Programación (UTN).
 
-- **`database.py`**: Configuración del `engine` SQLite, creación de tablas y generador de sesión (`get_session`).
-- **`main.py`**: Punto de entrada de la aplicación FastAPI, ciclo de vida (`lifespan`) y registro de routers.
-- **`models/`**: Modelos de datos SQLModel (entidades ORM de base de datos y esquemas DTO de entrada/salida).
-  - `models/__init__.py`
-  - `models/autor.py`: Modelo `Autor` y tabla intermedia `LibroAutor` (relación N-N).
-  - `models/libro.py`: Modelo `Libro` y esquema `LibroRead` con autores anidados.
-  - `models/socio.py`: Modelo `Socio` con validación de email único.
-  - `models/prestamo.py`: Modelo `Prestamo` con control de fechas de vencimiento, devolución y multas.
-- **`routers/`**: Capa de presentación y controladores HTTP (sin lógica de negocio).
-  - `routers/__init__.py`
-  - `routers/autores.py`: Endpoints CRUD para `/autores`.
-  - `routers/libros.py`: Endpoints CRUD para `/libros`, asociación N-N (`/libros/{id}/autores/{autor_id}`) y filtro `?disponibles=true`.
-  - `routers/socios.py`: Endpoints CRUD para `/socios` y consulta de préstamos por socio (`/socios/{id}/prestamos?activos=true`).
-  - `routers/prestamos.py`: Endpoints transaccionales para registrar préstamos (`/prestamos`) y devoluciones (`/prestamos/{id}/devolucion`).
-- **`services/`**: Capa de lógica de negocio, validaciones de dominio y transacciones atómicas.
-  - `services/__init__.py`
-  - `services/autores.py`: Servicio `AutorService`.
-  - `services/libros.py`: Servicio `LibroService` (unicidad de ISBN, filtro de stock y asociación de autores).
-  - `services/socios.py`: Servicio `SocioService` (unicidad de email y gestión de socios).
-  - `services/prestamos.py`: Servicio `PrestamoService` (reglas de préstamos activos, control de stock, plazos de 14 días y cálculo de multas).
-- **`tests/`**: Suite de pruebas de integración con Pytest y SQLite en memoria (`StaticPool`).
-  - `tests/__init__.py`
-  - `tests/conftest.py`: Fixtures de base de datos aislada en memoria (`session`) y cliente de pruebas (`client`).
-  - `tests/test_biblioteca.py`: Casos de prueba de éxito y error para todas las reglas de negocio.
-- **`pyproject.toml`** y **`requirements.txt`**: Configuración de herramientas y dependencias del proyecto.
+---
 
-## Requisitos e Instalación
+## ✨ Características Principales
 
-1. Clonar el repositorio y ubicarse en el directorio del proyecto:
+- **CRUD completo** para `Autores`, `Libros` y `Socios` con paginación (`offset` y `limit`).
+- **Relación N-N** entre libros y autores mediante tabla intermedia (`LibroAutor`), devolviendo los autores anidados en las consultas de libros.
+- **Arquitectura en capas** (`models/`, `routers/`, `services/`) con inyección de dependencias (`Depends`).
+- **Reglas de negocio estrictas** con códigos de estado HTTP semánticos (`200`, `201`, `403`, `404`, `409`).
+- **Suite de pruebas automatizadas** con `pytest` y base de datos SQLite en memoria (`StaticPool`).
 
-```bash
-git clone https://github.com/leandrogabas/TP2-ProgramacionIV-Biblioteca.git
-cd TP2-ProgramacionIV-Biblioteca
+---
+
+## 🏗️ Arquitectura del Proyecto
+
+```text
+UTN-TP2-PROGRAMACION-IV/
+├── main.py                  # Punto de entrada FastAPI, ciclo de vida (lifespan) y routers
+├── database.py              # Engine SQLite, creación de tablas y SessionDep
+├── models/                  # Entidades SQLModel (tablas ORM + esquemas DTO)
+│   ├── autor.py             # Autor, LibroAutor (tabla intermedia N-N)
+│   ├── libro.py             # Libro, LibroRead (con autores anidados)
+│   ├── socio.py             # Socio (validación EmailStr)
+│   └── prestamo.py          # Prestamo, PrestamoCreate, DevolucionRequest
+├── routers/                 # Controladores HTTP (sin lógica de negocio)
+│   ├── autores.py
+│   ├── libros.py
+│   ├── socios.py
+│   └── prestamos.py
+├── services/                # Lógica de negocio, validaciones y transacciones
+│   ├── autores.py
+│   ├── libros.py
+│   ├── socios.py
+│   └── prestamos.py
+├── tests/                   # Tests de integración con base en memoria
+│   ├── conftest.py          # Fixtures de sesión aislada y TestClient
+│   └── test_biblioteca.py   # Casos felices y de error para todas las reglas
+├── requirements.txt
+└── pyproject.toml
 ```
 
-2. Crear y activar un entorno virtual:
+---
+
+## 📊 Modelo de Datos
+
+- **Libro - Autor (`N-N`)**: Un libro puede tener múltiples autores y un autor puede participar en múltiples libros (`LibroAutor`).
+- **Préstamo - Socio (`N-1`)**: Cada préstamo pertenece a un único socio.
+- **Préstamo - Libro (`N-1`)**: Cada préstamo corresponde a un único libro.
+
+---
+
+## 📋 Reglas de Negocio
+
+| # | Regla | Código HTTP |
+| :-: | :--- | :-: |
+| 1 | Un socio no puede tener más de **3 préstamos activos** en simultáneo. | `409 Conflict` |
+| 2 | No se puede prestar un libro sin stock; al prestar se **descuenta 1** unidad. | `409 Conflict` |
+| 3 | Un socio **inactivo** (`activo = false`) no puede solicitar préstamos. | `403 Forbidden` |
+| 4 | El plazo estándar de préstamo es de **14 días** (`fecha_vencimiento = fecha_prestamo + 14 días`). | — |
+| 5 | Al devolver se **repone el stock** y se calcula la multa: **$100 por día de atraso** (`0` si llega a tiempo). | — |
+| 6 | No se puede devolver un préstamo que **ya fue devuelto**. | `409 Conflict` |
+| 7 | Cualquier operación sobre un **recurso inexistente** devuelve error. | `404 Not Found` |
+| 8 | No se permiten **ISBN** ni **emails** duplicados (en alta o modificación). | `409 Conflict` |
+
+---
+
+## 🔌 Endpoints Principales
+
+| Método | Ruta | Descripción | Códigos HTTP |
+| :--- | :--- | :--- | :--- |
+| `CRUD` | `/autores`, `/libros`, `/socios` | Alta, consulta, modificación (`PUT`/`PATCH`) y baja | `200`, `201`, `404`, `409` |
+| `POST` | `/libros/{id}/autores/{autor_id}` | Asocia un autor existente a un libro | `200`, `404`, `409` |
+| `GET` | `/libros?disponibles=true` | Lista libros con `stock > 0` | `200` |
+| `POST` | `/prestamos` | Registra un préstamo y descuenta stock | `201`, `403`, `404`, `409` |
+| `GET` | `/prestamos/{id}` | Consulta el detalle de un préstamo | `200`, `404` |
+| `POST` | `/prestamos/{id}/devolucion` | Registra la devolución, repone stock y calcula multa | `200`, `404`, `409` |
+| `GET` | `/socios/{id}/prestamos?activos=true` | Lista los préstamos activos del socio | `200`, `404` |
+
+---
+
+## 🚀 Instalación y Ejecución
+
+### 1. Clonar el repositorio
 
 ```bash
-python -m venv .venv
-# En Windows (PowerShell):
-.\.venv\Scripts\Activate.ps1
-# En Linux / macOS:
-source .venv/bin/activate
+git clone https://github.com/IvanClar1a/UTN-TP2-PROGRAMACION-IV.git
+cd UTN-TP2-PROGRAMACION-IV
 ```
 
-3. Instalar las dependencias:
+### 2. Crear y activar el entorno virtual
+
+```bash
+python3 -m venv .venv
+```
+
+- **Linux / macOS:**
+  ```bash
+  source .venv/bin/activate
+  ```
+- **Windows (PowerShell):**
+  ```powershell
+  .\.venv\Scripts\Activate.ps1
+  ```
+
+### 3. Instalar dependencias
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Ejecución de la API
-
-Para iniciar el servidor de desarrollo con recarga automática:
+### 4. Levantar el servidor
 
 ```bash
 uvicorn main:app --reload
 ```
 
-- **Documentación interactiva (Swagger UI):** `http://127.0.0.1:8000/docs`
-- **Documentación alternativa (ReDoc):** `http://127.0.0.1:8000/redoc`
+Una vez iniciado, accedé a la documentación interactiva en:
+- **Swagger UI:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **ReDoc:** [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
-## Ejecución de Pruebas y Cobertura (Testing)
+---
 
-La suite de pruebas utiliza una base de datos SQLite en memoria aislada por cada función de test (`sqlite://` + `StaticPool`), sin afectar el archivo `biblioteca.db` local.
+## 🧪 Pruebas y Cobertura
 
-Para correr los tests:
+Los tests utilizan una base de datos **SQLite en memoria** aislada por cada prueba (`sqlite://` + `StaticPool`), sin modificar el archivo `biblioteca.db` local.
 
-```bash
-pytest -v
-```
+- **Ejecutar todos los tests:**
+  ```bash
+  pytest -v
+  ```
 
-Para ejecutar los tests midiendo el porcentaje de cobertura de código (requisito >= 80%):
+- **Ejecutar con reporte de cobertura (objetivo >= 80%):**
+  ```bash
+  pytest --cov=. --cov-report=term-missing
+  ```
 
-```bash
-pytest --cov=. --cov-report=term-missing
-```
+---
 
-## Endpoints Principales y Reglas de Negocio
+## 👤 Autor
 
-| Método | Ruta | Descripción | Códigos HTTP |
-|---|---|---|---|
-| `CRUD` | `/autores`, `/libros`, `/socios` | Alta, baja, modificación (`PUT`/`PATCH`) y consulta | `200`, `201`, `404`, `409` |
-| `POST` | `/libros/{id}/autores/{autor_id}` | Asocia un autor existente a un libro (relación N-N) | `200`, `404`, `409` |
-| `GET` | `/libros?disponibles=true` | Lista únicamente los libros con `stock > 0` | `200` |
-| `POST` | `/prestamos` | Registra un préstamo (descuenta 1 stock, vence en 14 días) | `201`, `403`, `404`, `409` |
-| `POST` | `/prestamos/{id}/devolucion` | Registra devolución, repone stock y calcula multa (100 por día de atraso) | `200`, `404`, `409` |
-| `GET` | `/socios/{id}/prestamos?activos=true` | Lista los préstamos activos (`fecha_devolucion == null`) del socio | `200`, `404` |
+**Iván Clariá** — [GitHub (@IvanClar1a)](https://github.com/IvanClar1a)
